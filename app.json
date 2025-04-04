@@ -1,10 +1,10 @@
 {
-  "name": "IgniteTV",
-  "displayName": "IgniteTV",
+  "name": "MediaScheduler",
+  "displayName": "Media Scheduler",
   "expo": {
-    "name": "IgniteTV",
-    "slug": "IgniteTV",
-    "scheme": "ignitetv",
+    "name": "Media Scheduler",
+    "slug": "media-scheduler",
+    "scheme": "mediascheduler",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-all.png",
@@ -22,7 +22,7 @@
     ],
     "android": {
       "icon": "./assets/images/app-icon-android-legacy.png",
-      "package": "com.ignitetv",
+      "package": "com.orino.mediascheduler",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/app-icon-android-adaptive-foreground.png",
         "backgroundImage": "./assets/images/app-icon-android-adaptive-background.png"
@@ -32,7 +32,8 @@
         "resizeMode": "contain",
         "backgroundColor": "#191015"
       },
-      "userInterfaceStyle": "light"
+      "userInterfaceStyle": "light",
+      "permissions": []
     },
     "ios": {
       "icon": "./assets/images/app-icon-ios.png",
@@ -72,11 +73,18 @@
         }
       ],
       "expo-font",
-      "expo-localization"
+      "expo-localization",
+      "expo-secure-store",
+      "react-native-video"
     ],
     "newArchEnabled": true,
     "experiments": {
       "tsconfigPaths": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "32fc3c1d-2d0c-428f-994e-0ff3df508710"
+      }
     }
   },
   "ignite": {

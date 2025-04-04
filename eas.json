@@ -8,12 +8,20 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug",
         "withoutCredentials": true
       },
       "ios": {
         "buildConfiguration": "Debug",
         "simulator": true
+      }
+    },
+    "production:tv": {
+      "extends": "production",
+      "env": {
+        "EXPO_TV": "1"
+      },
+      "android": {
+        "buildType": "apk"
       }
     },
     "development:tv": {

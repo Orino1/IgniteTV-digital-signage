@@ -10,3 +10,5 @@ export * from "./Text"
 export * from "./TextField"
 export * from "./Toggle"
 export * from "./EmptyState"
+// here we import our compenents
+export * from "./NeedConnection"

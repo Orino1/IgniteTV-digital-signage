@@ -16,10 +16,16 @@ import React from "react"
 import { useColorScheme } from "react-native"
 import * as Screens from "app/screens"
 import Config from "../config"
-import { useStores } from "../models"
-import { DemoNavigator, DemoTabParamList } from "./DemoNavigator"
+//import { useStores } from "../models"
+//import { DemoNavigator, DemoTabParamList } from "./DemoNavigator"
 import { navigationRef, useBackButtonHandler } from "./navigationUtilities"
 import { colors } from "app/theme"
+
+import { View, ActivityIndicator, StyleSheet } from "react-native"
+
+// context providers
+import { useAuthContext } from "../context/AuthProvider"
+import { useSetupContext } from "app/context/SetupProvider"
 
 /**
  * This type allows TypeScript to know what routes are defined in this navigator
@@ -35,9 +41,12 @@ import { colors } from "app/theme"
  *   https://reactnavigation.org/docs/typescript/#organizing-types
  */
 export type AppStackParamList = {
+  Activation: undefined
+  Setup: undefined
   Welcome: undefined
-  Login: undefined
-  Demo: NavigatorScreenParams<DemoTabParamList>
+  MediaPlayer: undefined
+  //Login: undefined
+  //Demo: NavigatorScreenParams<DemoTabParamList>
   // 🔥 Your screens go here
   // IGNITE_GENERATOR_ANCHOR_APP_STACK_PARAM_LIST
 }
@@ -57,24 +66,25 @@ export type AppStackScreenProps<T extends keyof AppStackParamList> = NativeStack
 const Stack = createNativeStackNavigator<AppStackParamList>()
 
 const AppStack = observer(function AppStack() {
-  const {
-    authenticationStore: { isAuthenticated },
-  } = useStores()
+  const { authenticated } = useAuthContext()
+  const { setup, setupLoading, setupUpdating, setupAssetsComplete } = useSetupContext()
 
   return (
     <Stack.Navigator
       screenOptions={{ headerShown: false, navigationBarColor: colors.background }}
-      initialRouteName={isAuthenticated ? "Welcome" : "Login"}
+      //initialRouteName={authenticated ? "Setup" : "Activation"}
     >
-      {isAuthenticated ? (
+      {authenticated ? (
         <>
-          <Stack.Screen name="Welcome" component={Screens.WelcomeScreen} />
-
-          <Stack.Screen name="Demo" component={DemoNavigator} />
+          {setupLoading || !setup || setupUpdating || !setupAssetsComplete ? (
+            <Stack.Screen name="Setup" component={Screens.SetupScreen} />
+          ) : (
+            <Stack.Screen name="MediaPlayer" component={Screens.MediaPlayerScreen} />
+          )}
         </>
       ) : (
         <>
-          <Stack.Screen name="Login" component={Screens.LoginScreen} />
+          <Stack.Screen name="Activation" component={Screens.ActivationScreen} />
         </>
       )}
 
@@ -89,9 +99,16 @@ export interface NavigationProps
 
 export const AppNavigator = observer(function AppNavigator(props: NavigationProps) {
   const colorScheme = useColorScheme()
-
+  const { authLoading } = useAuthContext()
   useBackButtonHandler((routeName) => exitRoutes.includes(routeName))
 
+  if (authLoading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    )
+  }
   return (
     <NavigationContainer
       ref={navigationRef}
@@ -101,4 +118,13 @@ export const AppNavigator = observer(function AppNavigator(props: NavigationProp
       <AppStack />
     </NavigationContainer>
   )
+})
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#000",
+  },
 })

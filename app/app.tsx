@@ -31,6 +31,14 @@ import Config from "./config"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { ViewStyle } from "react-native"
 
+// context providers
+import AuthProvider from "./context/AuthProvider"
+import SnapshotProvider from "./context/SnapshotProvider"
+import OnlineStatusProvider from "./context/OnlineStatusProvider"
+import SetupProvider from "./context/SetupProvider"
+import InstructionsProvider from "./context/InstructionProvider"
+import HeartBeatProvider from "./context/HeartBeatProvider"
+
 export const NAVIGATION_PERSISTENCE_KEY = "NAVIGATION_STATE"
 
 // Web linking configuration
@@ -99,7 +107,7 @@ function App(props: AppProps) {
   }
 
   if (didFontLoadError) {
-    console.error(didFontLoadError);
+    console.error(didFontLoadError)
   }
 
   // otherwise, we're ready to render the app
@@ -107,16 +115,30 @@ function App(props: AppProps) {
     <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ErrorBoundary catchErrors={Config.catchErrors}>
         <GestureHandlerRootView style={$container}>
-          <AppNavigator
-            linking={linking}
-            initialState={initialNavigationState}
-            onStateChange={onNavigationStateChange}
-          />
+          <AuthProvider>
+            <OnlineStatusProvider>
+              <HeartBeatProvider>
+                <SetupProvider>
+                  <SnapshotProvider>
+                    <InstructionsProvider>
+                      <AppNavigator
+                        linking={linking}
+                        initialState={initialNavigationState}
+                        onStateChange={onNavigationStateChange}
+                      />
+                    </InstructionsProvider>
+                  </SnapshotProvider>
+                </SetupProvider>
+              </HeartBeatProvider>
+            </OnlineStatusProvider>
+          </AuthProvider>
         </GestureHandlerRootView>
       </ErrorBoundary>
     </SafeAreaProvider>
   )
 }
+
+// TODO: handle init loading of authanticated
 
 export default App
 
