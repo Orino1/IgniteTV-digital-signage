@@ -4,7 +4,9 @@ import {
     createContext,
     useContext,
     ReactNode,
+    useRef
 } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import { useOnlineStatus } from "./OnlineStatusProvider";
 import { useAuthContext } from "./AuthProvider";
 import { useSnapshotContext } from "./SnapshotProvider";
@@ -31,63 +33,91 @@ export default function InstructionsProvider({
     const { setSnapshotUrl } = useSnapshotContext();
     const { fetchOnlineSetup } = useSetupContext();
 
+    const appState = useRef(AppState.currentState);
+    const [appVisible, setAppVisible] = useState(true);
     
+    const connectEventSource = () => {
+        if (!online || !authenticated || !apiKey) return;
+
+        const es = new EventSource("https://www.orino.me/api/devices/me/instructions", {
+            headers: {
+                "X-API-Key": apiKey,
+            },
+        });
+
+        es.addEventListener("message", (event) => {
+            const instruction = JSON.parse(event.data);
+            console.log("We got an instruction:", instruction);
+
+            if (instruction.instruction === "snapshot") {
+                setSnapshotUrl(instruction.file_id);
+            } else if (instruction.instruction === "update_setup") {
+                fetchOnlineSetup();
+            } else if (instruction.instruction === "deleted") {
+                // TODO: Handle delete
+            }
+        });
+
+        es.addEventListener("error", () => {
+            es.removeAllEventListeners();
+            es.close();
+            setEventSource(null);
+
+            setTimeout(() => {
+                if (online && authenticated && apiKey && appVisible) {
+                    connectEventSource();
+                }
+            }, 5000);
+        });
+
+        setEventSource(es);
+    };
+
+    const disconnectEventSource = () => {
+        if (eventSource) {
+            eventSource.removeAllEventListeners();
+            eventSource.close();
+            setEventSource(null);
+        }
+    };
+
     // i need the authantication and gets from it teh actual apikey
     useEffect(() => {
         if (onlineLoading || authLoading || !authenticated || !apiKey) return;
 
-        if (!online && eventSource) {
-            eventSource.removeAllEventListeners()
-            eventSource.close();
-            setEventSource(null);
-            //console.log("closing sse becouse conection was lost")
-        }
+        //let es: EventSource | null = null
 
         if (online && !eventSource) {
-            const es = new EventSource(
-                "https://www.orino.me/api/devices/me/instructions",
-                {
-                    headers: {
-                        "X-API-Key": apiKey,
-                    },
-                }
-            );
-
-            es.addEventListener("open", (event) => {
-                console.log("Opened sse connection from instructions")
-            })
-
-            es.addEventListener("message", (event) => {
-                const instruction = JSON.parse(event.data);
-                //console.log("We got an instruction:", instruction);
-                if (instruction.instruction === "snapshot") {
-                    const upload_url = "https://www.orino.me/api/devices/upload-screen-shot"
-                    setSnapshotUrl(upload_url);
-                    //console.log("snapshot instruction is onvoked");
-                } else if (instruction.instruction === "update_setup") {
-                    // means update teh setup
-                    fetchOnlineSetup();
-                    //console.log("update instruction is onvoked");
-                } else if (instruction.instruction === "deleted") {
-                    // TODO: delete all files and remove api key
-                }
-            });
-
-            es.addEventListener("error", (e) => {
-                //console.error("⚠️ SSE error:", e);
-            });
-
-            setEventSource(es);
+            connectEventSource();
+        } else if (!online) {
+            disconnectEventSource();
         }
 
         return () => {
-            if (eventSource) {
-                eventSource.removeAllEventListeners()
-                eventSource.close();
-                setEventSource(null);
-                //console.log("closing sse from clean up function")
-            }
+            disconnectEventSource();
         };
     }, [online, onlineLoading, authLoading, authenticated, apiKey]);
+
+    useEffect(() => {
+        if (
+            appVisible && // we just came back to foreground
+            online &&
+            authenticated &&
+            apiKey &&
+            !eventSource
+        ) {
+            connectEventSource();
+        }
+    }, [appVisible, online, authenticated, apiKey, eventSource]);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
+            const isNowVisible = nextAppState === "active";
+            setAppVisible(isNowVisible);
+            appState.current = nextAppState;
+        });
+    
+        return () => subscription.remove();
+    }, []);
     return <context.Provider value={{}}>{children}</context.Provider>;
 }

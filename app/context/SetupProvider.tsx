@@ -62,6 +62,7 @@ export default function SetupProvider({ children }: { children: any }) {
 
   // fetch setup from lcoal file
   const fetchLocalSetup = async () => {
+    console.log("fetch local invoked")
     try {
       const fileInfo = await FileSystem.getInfoAsync(DOCUMENTS_DIR)
       if (!fileInfo.exists) {
@@ -89,10 +90,12 @@ export default function SetupProvider({ children }: { children: any }) {
 
   // fetch setup from api
   const fetchOnlineSetup = async () => {
+    console.log("Fetch online started")
     if (isFetchingRef.current) {
       pendingCallsRef.current += 1
       return
     }
+    console.log("Fetch online passed lock: " + pendingCallsRef.current)
 
     isFetchingRef.current = true
 
@@ -165,7 +168,7 @@ export default function SetupProvider({ children }: { children: any }) {
     } finally {
       // re-fetch local setup
       await fetchLocalSetup()
-
+      //console.log("finally completed and fetched new lcal ")
       isFetchingRef.current = false
 
       if (pendingCallsRef.current > 0) {

@@ -28,6 +28,16 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
 
   // here we need a single use effect to handle retrival of the code and at same time connecting to teh actual
   useEffect(() => {
+    if (!online) {
+      setCode(null)
+      if (eventSource) {
+        eventSource.removeAllEventListeners()
+        eventSource.close()
+        setEventSource(null)
+      }
+      return
+    }
+
     const handleCode = async () => {
       const res = await fetch("https://www.orino.me/api/codes")
       const data = await res.json()
@@ -36,15 +46,13 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
     }
 
     handleCode()
-  }, [])
+  }, [online])
 
   useEffect(() => {
-    if (!code) {
-      return
-    }
+    if (!code) return
 
     const es = new EventSource(`https://www.orino.me/api/codes/${code}/status`)
-
+    setEventSource(es)
     es.addEventListener("open", (event) => {
       //console.log("Open SSE connection from index.")
     })
@@ -59,18 +67,25 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
       setEventSource(null)
       setApiKey(data.api_key)
       setAuthanticated(true)
-      //console.log("Device activated")
+    })
+
+    es.addEventListener("error", async (event) => {
+      es.removeAllEventListeners();
+      es.close();
+      setEventSource(null);
     })
 
     setEventSource(es)
 
     return () => {
-      if (eventSource) {
-        es.removeAllEventListeners()
-        es.close()
-      }
+      es.removeAllEventListeners()
+      es.close()
     }
   }, [code])
+
+  if (!online) {
+    return <NeedConnection text="Please connect to Wi-Fi to activate your device." />
+  }
 
   if (!code || onlineLoading) {
     return (
@@ -78,10 +93,6 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
         <ActivityIndicator size="large" />
       </View>
     )
-  }
-
-  if (!online) {
-    return <NeedConnection text="Please connect to Wi-Fi to activate your device." />
   }
 
   return (

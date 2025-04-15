@@ -77,11 +77,26 @@ export const extractFileName = (url: string): string => {
   return baseUrl.split("/").pop() || `file_${Date.now()}`
 }
 
+const utcToLocalTimeZone = (time: string) => {
+  const [hh, mm] = time.split(":").map(Number)
+  const tzOffsetMinutes = new Date().getTimezoneOffset()
+  let totalMinutes = hh * 60 + mm
+  totalMinutes -= tzOffsetMinutes
+
+  const localHours = Math.floor(((totalMinutes + 1440) % 1440) / 60)
+  const localMinutes = (totalMinutes + 1440) % 60
+
+  return new Date(1970, 0, 1, localHours, localMinutes)
+}
+
+//    startTime: utcToLocalTimeZone(playlist.start_time),
+//    endTime: utcToLocalTimeZone(playlist.end_time),
+
 export const processPlaylists = (playlists) => {
   const processed = playlists.map((playlist) => ({
     ...playlist,
-    startTime: new Date(`1970-01-01T${playlist.start_time}`),
-    endTime: new Date(`1970-01-01T${playlist.end_time}`),
+    startTime: utcToLocalTimeZone(playlist.start_time),
+    endTime: utcToLocalTimeZone(playlist.end_time),
     days: {
       monday: playlist.monday,
       tuesday: playlist.tuesday,
@@ -117,7 +132,7 @@ export const isPlaylistActive = (playlist: any, now: any) => {
     return nowTime >= startTimeTime || nowTime <= endTimeTime
   }
 
-  return nowTime >= startTimeTime && nowTime <= endTimeTime
+  return nowTime >= startTimeTime && nowTime < endTimeTime
 }
 
 const replaceUrls = (obj: any): any => {

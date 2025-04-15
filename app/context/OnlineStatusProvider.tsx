@@ -26,10 +26,13 @@ export default function OnlineStatusProvider({
 
     useEffect(() => {
         // added for initial app lunch
-        NetInfo.fetch().then((state) => {
+        const checkInitialNetworkStatus = async () => {
+            const state = await NetInfo.fetch();
             setOnline(state.isConnected || false);
             setOnlineLoading(false);
-        });
+        };
+  
+        checkInitialNetworkStatus();
 
         const unsubscribe = NetInfo.addEventListener((state) => {
             setOnline(state.isConnected || false);

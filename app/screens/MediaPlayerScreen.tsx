@@ -1,12 +1,14 @@
 import { observer } from "mobx-react-lite"
 import React, { FC, useEffect, useState } from "react"
 import { AppStackScreenProps } from "../navigators"
-import { StyleSheet, Text, View, ImageBackground } from "react-native"
+import { StyleSheet, View, ImageBackground } from "react-native"
 import { useSetupContext } from "app/context/SetupProvider"
 import { extractFileName, isPlaylistActive, processPlaylists } from "../utils/global"
 import { Video } from "react-native-video"
 
 import * as FileSystem from "expo-file-system"
+
+import { Text } from "../components"
 
 const DOCUMENTS_DIR = FileSystem.documentDirectory
 
@@ -54,7 +56,7 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
 
     checkActivePlaylist()
 
-    const intervalId = setInterval(checkActivePlaylist, 60000)
+    const intervalId = setInterval(checkActivePlaylist, 10000)
 
     return () => clearInterval(intervalId)
   }, [setup, setupUpdating])
@@ -66,7 +68,7 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
   if (!activePlaylist) {
     return (
       <View style={styles.container}>
-        <Text style={styles.text}>Awaiting next playlist</Text>
+        <Text preset="heading" size="lg" style={{ color: "white" }}>Waiting for next playlist</Text>
       </View>
     )
   }
