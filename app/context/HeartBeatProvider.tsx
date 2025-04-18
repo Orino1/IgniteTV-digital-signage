@@ -16,7 +16,7 @@ const HeartBeatProvider = ({ children }: { children: any }) => {
 
     const interval = setInterval(async () => {
         try {
-          await fetch("https://www.orino.me/api/devices/me/heartbeat", {
+          await fetch("https://videobackend.tashirpizza.ru/api/tv/devices/me/heartbeat", {
             headers: {
               "X-API-Key": apiKey,
               "Content-Type": "application/json",

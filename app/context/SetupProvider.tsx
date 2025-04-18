@@ -102,7 +102,7 @@ export default function SetupProvider({ children }: { children: any }) {
     try {
       if (!authenticated || !apiKey) return
 
-      const res = await fetch("https://www.orino.me/api/devices/me", {
+      const res = await fetch("https://videobackend.tashirpizza.ru/api/tv/devices/me", {
         headers: { "X-API-Key": apiKey },
       })
       const deviceInfo = await res.json()

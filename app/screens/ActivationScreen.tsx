@@ -39,7 +39,7 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
     }
 
     const handleCode = async () => {
-      const res = await fetch("https://www.orino.me/api/codes")
+      const res = await fetch("https://videobackend.tashirpizza.ru/api/tv/codes")
       const data = await res.json()
       const code = data.code
       setCode(code)
@@ -51,7 +51,7 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
   useEffect(() => {
     if (!code) return
 
-    const es = new EventSource(`https://www.orino.me/api/codes/${code}/status`)
+    const es = new EventSource(`https://videobackend.tashirpizza.ru/api/tv/codes/${code}/status`)
     setEventSource(es)
     es.addEventListener("open", (event) => {
       //console.log("Open SSE connection from index.")
@@ -113,7 +113,7 @@ export const ActivationScreen: FC<ActivationScreenProps> = observer(function Act
           </Text>
           <View style={[styles.qrWrapper, { width: width * 0.3, height: width * 0.3 }]}>
             <QRCode
-              value={`https://www.orino.me/dashboard/setup-new-device?pin=${code}`}
+              value={`https://video.tashirpizza.ru/dashboard/setup-new-device?pin=${code}`}
               size={width * 0.25}
               backgroundColor="white"
               quietZone={10}

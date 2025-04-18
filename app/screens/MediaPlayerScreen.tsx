@@ -1,14 +1,17 @@
 import { observer } from "mobx-react-lite"
-import React, { FC, useEffect, useState } from "react"
+import React, { FC, useEffect, useRef, useState } from "react"
 import { AppStackScreenProps } from "../navigators"
 import { StyleSheet, View, ImageBackground } from "react-native"
 import { useSetupContext } from "app/context/SetupProvider"
 import { extractFileName, isPlaylistActive, processPlaylists } from "../utils/global"
-import { Video } from "react-native-video"
+import { Video, ViewType } from "react-native-video"
 
 import * as FileSystem from "expo-file-system"
 
 import { Text } from "../components"
+
+import { Dimensions, ActivityIndicator } from "react-native"
+
 
 const DOCUMENTS_DIR = FileSystem.documentDirectory
 
@@ -28,27 +31,28 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
         const currentActivePlaylist = processedPlaylists.find((playlist) =>
           isPlaylistActive(playlist, now),
         )
-
+        console.log("runned 1")
         if (currentActivePlaylist) {
+          // copy playlist obj
+          const playlistTarger = JSON.parse(JSON.stringify(currentActivePlaylist))
+          // now shall we make the new playlist format
           const newPlaylistFilesFormat = {
-            ...currentActivePlaylist,
-            videos: currentActivePlaylist.videos.map((vid) => ({
+            ...playlistTarger,
+            videos: playlistTarger.videos.map((vid) => ({
               url: DOCUMENTS_DIR + extractFileName(vid.url),
               duration: vid.duration,
               type: "video",
             })),
-            images: currentActivePlaylist.images.map((img) => ({
+            images: playlistTarger.images.map((img) => ({
               url: DOCUMENTS_DIR + extractFileName(img.url),
               duration: img.duration,
               type: "image",
             })),
           }
-          if (JSON.stringify(newPlaylistFilesFormat) !== JSON.stringify(activePlaylist)) {
-            console.log(newPlaylistFilesFormat)
-            setActivePlaylist(newPlaylistFilesFormat)
-          }
-          // setActivePlaylist(newPlaylistFilesFormat)
+
+          setActivePlaylist(newPlaylistFilesFormat)
         } else {
+          console.log("runing here")
           setActivePlaylist(null)
         }
       }
@@ -68,7 +72,9 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
   if (!activePlaylist) {
     return (
       <View style={styles.container}>
-        <Text preset="heading" size="lg" style={{ color: "white" }}>Waiting for next playlist</Text>
+        <Text preset="heading" size="lg" style={{ color: "white" }}>
+          Waiting for next playlist
+        </Text>
       </View>
     )
   }
@@ -81,21 +87,63 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
 })
 
 const PlaylistDisplay = ({ playlist }) => {
-  const mediaList = [...playlist.images, ...playlist.videos]
+  const [mediaList, setMediaList] = useState(null)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
 
+  const [isProcessing, setIsProcessing] = useState(true)
+
   const handleMediaEnd = () => {
-    console.log("next is switched")
+    //console.log("next is switched")
     const nextIndex = (currentMediaIndex + 1) % mediaList.length
     setCurrentMediaIndex(nextIndex)
   }
 
+  useEffect(() => {
+    // proccesing videos at start
+    const proccesVideosThumbnails = async () => {
+      let videosWithThumbnails = []
+      let lastImageObj = null
+
+      if (playlist.images.length > 0) {
+        // const newPlaylistFilesFormatFrezzed = Object.freeze(JSON.parse(JSON.stringify(newPlaylistFilesFormat)))
+        lastImageObj = JSON.parse(JSON.stringify(playlist.images[playlist.images.length - 1]))
+      }
+
+      for (const videoObj of playlist.videos) {
+        
+        videosWithThumbnails.push({
+          url: videoObj.url,
+          type: "video",
+          uri: lastImageObj,
+        })
+      }
+
+      // we have procceded videos
+      const imageCopies = playlist.images.map(img => JSON.parse(JSON.stringify(img)))
+      setMediaList([...imageCopies, ...videosWithThumbnails])
+
+      setIsProcessing(false)
+    }
+
+    proccesVideosThumbnails()
+  }, [])
+
+  if (isProcessing) {
+    return (
+        <View style={styles.container}>
+                <ActivityIndicator size="large" />
+              </View>
+    )
+  }
+
   return (
-    <Media
-      mediaList={mediaList}
-      currentMediaIndex={currentMediaIndex}
-      handleMediaEnd={handleMediaEnd}
-    />
+    <View style={styles.container}>
+      <Media
+        mediaList={mediaList}
+        currentMediaIndex={currentMediaIndex}
+        handleMediaEnd={handleMediaEnd}
+      />
+    </View>
   )
 }
 
@@ -104,36 +152,49 @@ function Media({ mediaList, currentMediaIndex, handleMediaEnd }) {
     <View style={styles.container}>
       {mediaList[currentMediaIndex].type === "video" ? (
         <VideoFullScreen
-          key={Date.now()}
+          key={mediaList[currentMediaIndex]}
           vidObj={mediaList[currentMediaIndex]}
           onEnd={handleMediaEnd}
+          mediaTotal={mediaList.length}
         />
       ) : (
         <ImageFullScreen
-          key={Date.now()}
+          key={mediaList[currentMediaIndex]}
           imgObj={mediaList[currentMediaIndex]}
           onEnd={handleMediaEnd}
+          mediaTotal={mediaList.length}
         />
       )}
     </View>
   )
 }
 
-function ImageFullScreen({ imgObj, onEnd }) {
+function ImageFullScreen({ imgObj, onEnd, mediaTotal }) {
+  let timer = null
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onEnd()
-    }, imgObj.duration * 1000)
+    if (mediaTotal > 1) {
+      timer = setTimeout(() => {
+        onEnd()
+      }, imgObj.duration * 1000)
+    }
 
-    return () => clearTimeout(timer)
-  }, [imgObj.duration, onEnd])
+
+    return () => { if (timer) clearTimeout(timer)}
+  }, [imgObj])
 
   return <ImageBackground source={{ uri: imgObj.url }} style={styles.media} resizeMode="cover" />
 }
 
-function VideoFullScreen({ vidObj, onEnd }) {
+function VideoFullScreen({ vidObj, onEnd, mediaTotal }) {
+  const videoRef = useRef()
+  const loadStartTimeRef = useRef(null)
+
+  const [posterDisplayed, setPosterDisplayed] = useState(true)
+
   const handleVideoEnd = () => {
-    onEnd()
+    if (mediaTotal > 1) {
+      onEnd()
+    }
   }
 
   useEffect(() => {
@@ -146,23 +207,92 @@ function VideoFullScreen({ vidObj, onEnd }) {
     }
 
     return () => {
+      videoRef.current = null
       if (timer) clearTimeout(timer)
     }
   }, [])
 
+  const handleLoadStart = () => {
+    loadStartTimeRef.current = Date.now()
+    //console.log("Video loading started...")
+  }
+
+  const handleReadyForDisplay = () => {
+    if (loadStartTimeRef.current) {
+      const shutterTime = Date.now() - loadStartTimeRef.current
+      //console.log(`Shutter time: ${shutterTime}ms`)
+      //console.log(vidObj.uri)
+      setPosterDisplayed(false)
+    }
+  }
+
   return (
-    <Video
-      source={{ uri: vidObj.url }}
-      style={styles.media}
-      onEnd={handleVideoEnd}
-      resizeMode="cover"
-      controls={false}
-      fullscreen={false}
-      playInBackground={false}
-      playWhenInactive={false}
-      allowsExternalPlayback={false}
-      paused={false}
-    />
+    <>
+      <Video
+        ref={videoRef}
+        repeat={mediaTotal === 1}
+        onLoadStart={handleLoadStart}
+        onReadyForDisplay={() => {
+          handleReadyForDisplay()
+        }}
+        onLoad={() => {
+          //videoRef.current?.seek(0)
+          //videoRef.current?.resume()
+        }}
+        source={{
+          uri: vidObj.url,
+          bufferConfig: {
+            // Extreme low buffer values for local files
+            //minBufferMs: 10,
+            //maxBufferMs: 1000,
+            //bufferForPlaybackMs: 1,
+            //bufferForPlaybackAfterRebufferMs: 2,
+            //minBufferMemoryReservePercent: 2
+            //cacheSizeMB: 10
+            bufferForPlaybackMs: 250, // Minimum for smooth playback
+            bufferForPlaybackAfterRebufferMs: 100,
+            minBufferMs: 1500,
+            maxBufferMs: 2500,
+          },
+        }}
+        style={styles.media}
+        onEnd={handleVideoEnd}
+        //resizeMode="cover"
+        controls={false}
+        muted={true}
+        fullscreen={false}
+        playInBackground={false}
+        playWhenInactive={false}
+        allowsExternalPlayback={false}
+        paused={false}
+        hideShutterView={true}
+        shutterColor="transparent"
+        viewType={ViewType.TEXTURE}
+        reportBandwidth={false}
+        /**
+        usePoster={true} // <- REQUIRED to show poster!
+        poster={{
+          source: {uri: vidObj.uri},
+          resizeMode: "cover",
+        }}
+           */
+      />
+      {posterDisplayed && vidObj.uri && (
+        <ImageBackground
+          resizeMode="cover"
+          style={{
+            flex: 1,
+            width: "100%",
+            height: "100%",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            zIndex: 9999,
+          }}
+          source={{ uri: vidObj.uri.url}}
+        />
+      )}
+    </>
   )
 }
 const styles = StyleSheet.create({
@@ -173,13 +303,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#000",
+    //backgroundColor: "red",
+    position: 'relative'
+  },
+  overlay: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    backgroundColor: "rgb(0, 0, 0)",
+    zIndex: 9999,
   },
   text: {
     fontSize: 48,
     color: "white",
   },
   media: {
-    width: "100%",
-    height: "100%",
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height,
+    position: "absolute",
   },
 })

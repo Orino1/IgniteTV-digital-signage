@@ -1,5 +1,7 @@
 import * as FileSystem from "expo-file-system"
 import * as IntentLauncher from "expo-intent-launcher"
+import * as VideoThumbnails from 'expo-video-thumbnails';
+import { createThumbnail } from "react-native-create-thumbnail";
 
 export const extractFileUrls = (setup: any): string[] => {
   if (!setup || !setup.data) return []
@@ -171,3 +173,20 @@ export const burnItToGround = async () => {
 export const openSettings = () => {
   IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.SETTINGS)
 }
+
+export const generateThumbnail = async (videoUri: string) => {
+  try {
+    const response = await createThumbnail({
+      url: videoUri,
+      timeStamp: 0,
+      onlySyncedFrames: false,
+    });
+
+    console.log("Thumbnail response:", response);
+
+    return response.path + '.jpeg';
+  } catch (e) {
+    console.warn(e);
+    return null
+  }
+};

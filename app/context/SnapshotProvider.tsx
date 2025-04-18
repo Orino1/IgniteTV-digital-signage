@@ -21,7 +21,7 @@ export default function SnapshotProvider({ children }: { children: any }) {
     //const isUploadingRef = useRef(false);
     const viewRef = useRef<View>(null)
 
-    const upload_url = "https://www.orino.me/api/devices/upload-screen-shot-raw"
+    const upload_url = "https://videobackend.tashirpizza.ru/api/tv/devices/upload-screen-shot-raw"
     //const upload_url = "http://192.168.1.22:8000/devices/upload-screen-shot-raw"
 
     useEffect(() => {

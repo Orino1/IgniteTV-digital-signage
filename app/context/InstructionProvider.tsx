@@ -39,7 +39,7 @@ export default function InstructionsProvider({
     const connectEventSource = () => {
         if (!online || !authenticated || !apiKey) return;
 
-        const es = new EventSource("https://www.orino.me/api/devices/me/instructions", {
+        const es = new EventSource("https://videobackend.tashirpizza.ru/api/tv/devices/me/instructions", {
             headers: {
                 "X-API-Key": apiKey,
             },
