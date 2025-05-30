@@ -12,7 +12,6 @@ import { Text } from "../components"
 
 import { Dimensions, ActivityIndicator } from "react-native"
 
-
 const DOCUMENTS_DIR = FileSystem.documentDirectory
 
 interface MediaPlayerScreenProps extends AppStackScreenProps<"MediaPlayer"> {}
@@ -23,6 +22,8 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
   const { setup, setupUpdating } = useSetupContext()
   const [activePlaylist, setActivePlaylist] = useState(null)
 
+  const activePlaylistRef = useRef(null)
+
   useEffect(() => {
     const checkActivePlaylist = () => {
       if (setup && !setupUpdating) {
@@ -31,7 +32,7 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
         const currentActivePlaylist = processedPlaylists.find((playlist) =>
           isPlaylistActive(playlist, now),
         )
-        console.log("runned 1")
+        //console.log("runned 1")
         if (currentActivePlaylist) {
           // copy playlist obj
           const playlistTarger = JSON.parse(JSON.stringify(currentActivePlaylist))
@@ -49,14 +50,23 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
               type: "image",
             })),
           }
-
-          setActivePlaylist(newPlaylistFilesFormat)
+          if (
+            JSON.stringify(newPlaylistFilesFormat) !== JSON.stringify(activePlaylistRef.current)
+          ) {
+            //console.log("Updating playlist")
+            //console.log("OLD:", activePlaylistRef.current)
+            //console.log("NEW:", newPlaylistFilesFormat)
+            setActivePlaylist(newPlaylistFilesFormat)
+          }
+          // setActivePlaylist(newPlaylistFilesFormat)
         } else {
-          console.log("runing here")
+          //console.log("runing here")
           setActivePlaylist(null)
         }
       }
     }
+
+    
 
     checkActivePlaylist()
 
@@ -64,6 +74,10 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
 
     return () => clearInterval(intervalId)
   }, [setup, setupUpdating])
+
+  useEffect(() => {
+    activePlaylistRef.current = activePlaylist
+  }, [activePlaylist])
 
   if (!setup || setupUpdating) {
     null
@@ -85,32 +99,23 @@ export const MediaPlayerScreen: FC<MediaPlayerScreenProps> = observer(function M
     </View>
   )
 })
-
 const PlaylistDisplay = ({ playlist }) => {
   const [mediaList, setMediaList] = useState(null)
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0)
-
   const [isProcessing, setIsProcessing] = useState(true)
 
-  const handleMediaEnd = () => {
-    //console.log("next is switched")
-    const nextIndex = (currentMediaIndex + 1) % mediaList.length
-    setCurrentMediaIndex(nextIndex)
-  }
-
   useEffect(() => {
-    // proccesing videos at start
-    const proccesVideosThumbnails = async () => {
-      let videosWithThumbnails = []
-      let lastImageObj = null
+    let isCancelled = false
 
-      if (playlist.images.length > 0) {
-        // const newPlaylistFilesFormatFrezzed = Object.freeze(JSON.parse(JSON.stringify(newPlaylistFilesFormat)))
-        lastImageObj = JSON.parse(JSON.stringify(playlist.images[playlist.images.length - 1]))
-      }
+    const processVideosAndImages = async () => {
+      setIsProcessing(true)
+
+      let videosWithThumbnails = []
+      let lastImageObj = playlist.images.length
+        ? JSON.parse(JSON.stringify(playlist.images[playlist.images.length - 1]))
+        : null
 
       for (const videoObj of playlist.videos) {
-        
         videosWithThumbnails.push({
           url: videoObj.url,
           type: "video",
@@ -118,21 +123,28 @@ const PlaylistDisplay = ({ playlist }) => {
         })
       }
 
-      // we have procceded videos
-      const imageCopies = playlist.images.map(img => JSON.parse(JSON.stringify(img)))
-      setMediaList([...imageCopies, ...videosWithThumbnails])
+      const imageCopies = playlist.images.map((img) => JSON.parse(JSON.stringify(img)))
+      const newMediaList = [...imageCopies, ...videosWithThumbnails]
 
-      setIsProcessing(false)
+      if (!isCancelled) {
+        setMediaList(newMediaList)
+        setCurrentMediaIndex(0) // reset index on new playlist
+        setIsProcessing(false)
+      }
     }
 
-    proccesVideosThumbnails()
-  }, [])
+    processVideosAndImages()
 
-  if (isProcessing) {
+    return () => {
+      isCancelled = true // clean up to prevent setting state after unmount
+    }
+  }, [playlist])
+
+  if (isProcessing || !mediaList) {
     return (
-        <View style={styles.container}>
-                <ActivityIndicator size="large" />
-              </View>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
     )
   }
 
@@ -141,16 +153,18 @@ const PlaylistDisplay = ({ playlist }) => {
       <Media
         mediaList={mediaList}
         currentMediaIndex={currentMediaIndex}
-        handleMediaEnd={handleMediaEnd}
+        handleMediaEnd={() => {
+          const nextIndex = (currentMediaIndex + 1) % mediaList.length
+          setCurrentMediaIndex(nextIndex)
+        }}
       />
     </View>
   )
 }
-
 function Media({ mediaList, currentMediaIndex, handleMediaEnd }) {
   return (
     <View style={styles.container}>
-      {mediaList[currentMediaIndex].type === "video" ? (
+      {mediaList[currentMediaIndex]?.type === "video" ? (
         <VideoFullScreen
           key={mediaList[currentMediaIndex]}
           vidObj={mediaList[currentMediaIndex]}
@@ -178,8 +192,9 @@ function ImageFullScreen({ imgObj, onEnd, mediaTotal }) {
       }, imgObj.duration * 1000)
     }
 
-
-    return () => { if (timer) clearTimeout(timer)}
+    return () => {
+      if (timer) clearTimeout(timer)
+    }
   }, [imgObj])
 
   return <ImageBackground source={{ uri: imgObj.url }} style={styles.media} resizeMode="cover" />
@@ -289,7 +304,7 @@ function VideoFullScreen({ vidObj, onEnd, mediaTotal }) {
             left: 0,
             zIndex: 9999,
           }}
-          source={{ uri: vidObj.uri.url}}
+          source={{ uri: vidObj.uri.url }}
         />
       )}
     </>
@@ -304,7 +319,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#000",
     //backgroundColor: "red",
-    position: 'relative'
+    position: "relative",
   },
   overlay: {
     flex: 1,
@@ -321,8 +336,8 @@ const styles = StyleSheet.create({
     color: "white",
   },
   media: {
-    width: Dimensions.get("window").width,
-    height: Dimensions.get("window").height,
+    width: "100%",
+    height: "100%",
     position: "absolute",
   },
 })
